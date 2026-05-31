@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>2D Animation Studio – Free Online Animator</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0d14;--bg2:#111520;--bg3:#181d2e;--bg4:#1e2438;
+  --accent:#f97316;--accent2:#fb923c;--green:#22c55e;--red:#ef4444;
+  --text:#eef0f8;--muted:#6b7280;--border:rgba(255,255,255,0.07);
+  --panel:220px;--timeline:180px;
+}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;font-size:14px;background:var(--bg);color:var(--text)}
+/* ── TOPBAR ─────────────────── */
+#topbar{
+  height:48px;background:var(--bg2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 14px;gap:14px;
+  position:fixed;top:0;left:0;right:0;z-index:50;
+}
+.logo{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;display:flex;align-items:center;gap:8px;color:var(--text)}
+.logo-dot{width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#fbbf24);display:flex;align-items:center;justify-content:center;font-size:13px}
+.tb-sep{width:1px;height:24px;background:var(--border)}
+.tb-btn{
+  display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:7px;
+  border:1px solid var(--border);background:transparent;color:var(--muted);
+  font-family:inherit;font-size:0.78rem;font-weight:500;cursor:pointer;transition:all .2s
+}
+.tb-btn:hover{background:var(--bg3);color:var(--text);border-color:rgba(255,255,255,.12)}
+.tb-btn.active{background:rgba(249,115,22,.12);color:var(--accent);border-color:rgba(249,115,22,.3)}
+.tb-btn.green{background:rgba(34,197,94,.12);color:var(--green);border-color:rgba(34,197,94,.3)}
+.tb-btn.green:hover{background:rgba(34,197,94,.2)}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+#record-btn.recording{background:rgba(239,68,68,.15);color:var(--red);border-color:rgba(239,68,68,.4);animation:pulse-red 1s ease-in-out infinite}
+@keyframes pulse-red{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}
+/* ── MAIN WORKSPACE ─────────── */
+#workspace{
+  position:fixed;top:48px;left:0;right:0;bottom:var(--timeline);
+  display:flex;
+}
+/* ── LEFT PANEL ─────────────── */
+#left-panel{
+  width:var(--panel);background:var(--bg2);border-right:1px solid var(--border);
+  overflow-y:auto;display:flex;flex-direction:column;gap:0;
+}
+#left-panel::-webkit-scrollbar{width:4px}
+#left-panel::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:4px}
+.panel-section{padding:12px}
+.panel-title{font-size:0.68rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.panel-divider{height:1px;background:var(--border);margin:0 12px}
+/* Character presets */
+.char-presets{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.char-preset{
+  aspect-ratio:1;border-radius:10px;border:2px solid var(--border);
+  cursor:pointer;transition:all .2s;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;background:var(--bg3);
+  font-size:1.6rem;
+}
+.char-preset:hover{border-color:rgba(249,115,22,.4);transform:scale(1.05)}
+.char-preset.selected{border-color:var(--accent);background:rgba(249,115,22,.08)}
+/* BG presets */
+.bg-swatches{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.bg-swatch{
+  aspect-ratio:1;border-radius:8px;cursor:pointer;
+  border:2px solid transparent;transition:all .2s;
+}
+.bg-swatch:hover{transform:scale(1.1)}
+.bg-swatch.selected{border-color:var(--accent)}
+/* Color pickers */
+.color-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.color-label{font-size:0.75rem;color:var(--muted);flex:1}
+.color-pick{width:32px;height:24px;border-radius:6px;border:1px solid var(--border);cursor:pointer;padding:2px}
+/* ── STAGE ───────────────────── */
+#stage-wrap{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  background:var(--bg);position:relative;overflow:hidden;
+}
+#stage-wrap::before{
+  content:'';position:absolute;inset:0;
+  background-image:linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);
+  background-size:40px 40px;pointer-events:none;
+}
+#main-canvas{
+  border-radius:12px;box-shadow:0 20px 80px rgba(0,0,0,.6);
+  cursor:default;position:relative;z-index:1;
+}
+.frame-badge{
+  position:absolute;top:14px;left:50%;transform:translateX(-50%);
+  background:rgba(11,13,20,.85);border:1px solid var(--border);
+  padding:4px 12px;border-radius:50px;font-size:0.72rem;color:var(--muted);
+  font-family:monospace;pointer-events:none;z-index:2;
+}
+/* ── RIGHT PANEL ─────────────── */
+#right-panel{
+  width:var(--panel);background:var(--bg2);border-left:1px solid var(--border);
+  overflow-y:auto;
+}
+#right-panel::-webkit-scrollbar{width:4px}
+#right-panel::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:4px}
+/* Sliders */
+.rig-group{padding:12px}
+.rig-item{margin-bottom:12px}
+.rig-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.rig-name{font-size:0.75rem;color:var(--muted);font-weight:500}
+.rig-val{font-size:0.7rem;color:var(--accent2);font-weight:600;font-family:monospace}
+input[type=range]{
+  width:100%;height:4px;border-radius:2px;
+  background:var(--bg4);outline:none;border:none;cursor:pointer;
+  appearance:none;-webkit-appearance:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+  background:var(--accent);cursor:pointer;box-shadow:0 0 8px rgba(249,115,22,.4);
+}
+input[type=range]::-moz-range-thumb{
+  width:14px;height:14px;border-radius:50%;
+  background:var(--accent);cursor:pointer;border:none;
+}
+/* Expression presets */
+.expr-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.expr-btn{
+  padding:7px 4px;border-radius:8px;border:1px solid var(--border);
+  background:var(--bg3);cursor:pointer;font-size:1.2rem;text-align:center;
+  transition:all .2s;
+}
+.expr-btn:hover{border-color:var(--accent);background:rgba(249,115,22,.1)}
+/* ── TIMELINE ────────────────── */
+#timeline{
+  position:fixed;bottom:0;left:0;right:0;height:var(--timeline);
+  background:var(--bg2);border-top:1px solid var(--border);
+  display:flex;flex-direction:column;
+}
+#tl-controls{
+  display:flex;align-items:center;gap:10px;padding:8px 14px;
+  border-bottom:1px solid var(--border);
+}
+.tl-btn{
+  width:30px;height:30px;border-radius:8px;border:1px solid var(--border);
+  background:var(--bg3);color:var(--text);cursor:pointer;font-size:13px;
+  display:flex;align-items:center;justify-content:center;transition:all .2s;
+}
+.tl-btn:hover{background:var(--bg4);border-color:rgba(255,255,255,.15)}
+.tl-btn.play-btn{background:var(--accent);border-color:var(--accent);box-shadow:0 0 16px rgba(249,115,22,.3)}
+.tl-btn.play-btn:hover{background:var(--accent2)}
+#tl-time{
+  font-family:monospace;font-size:0.8rem;color:var(--muted);
+  background:var(--bg3);padding:4px 10px;border-radius:6px;border:1px solid var(--border);
+  min-width:100px;text-align:center;
+}
+#fps-sel{
+  background:var(--bg3);border:1px solid var(--border);color:var(--text);
+  padding:4px 8px;border-radius:6px;font-size:0.75rem;cursor:pointer;font-family:inherit;
+}
+.tl-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.kf-count{font-size:0.72rem;color:var(--muted)}
+/* Timeline track */
+#tl-track-wrap{flex:1;position:relative;overflow:hidden;padding:8px 14px}
+#tl-ruler{
+  height:20px;position:relative;
+  border-bottom:1px solid var(--border);margin-bottom:6px;
+}
+#tl-scrubber-area{
+  height:60px;position:relative;cursor:pointer;
+  background:var(--bg3);border-radius:8px;border:1px solid var(--border);
+  overflow:hidden;
+}
+#tl-progress-bar{
+  position:absolute;top:0;left:0;width:0%;height:100%;
+  background:rgba(249,115,22,.08);border-right:2px solid var(--accent);
+  pointer-events:none;transition:none;
+}
+#tl-playhead{
+  position:absolute;top:0;width:2px;height:100%;
+  background:var(--accent);box-shadow:0 0 8px rgba(249,115,22,.5);
+  pointer-events:none;
+}
+.kf-marker{
+  position:absolute;top:50%;transform:translate(-50%,-50%);
+  width:10px;height:10px;border-radius:50%;
+  background:var(--accent2);border:2px solid var(--bg3);cursor:pointer;z-index:2;
+  transition:transform .15s;
+}
+.kf-marker:hover{transform:translate(-50%,-50%) scale(1.5)}
+.kf-marker.selected{background:#fff;box-shadow:0 0 8px rgba(255,255,255,.5)}
+#ruler-labels{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+.ruler-tick{position:absolute;bottom:0;font-size:0.6rem;color:var(--muted);transform:translateX(-50%)}
+/* tracks */
+#tl-tracks{display:flex;flex-direction:column;gap:4px;margin-top:4px}
+.tl-track-row{display:flex;align-items:center;height:18px;position:relative}
+.tl-track-label{width:80px;font-size:0.65rem;color:var(--muted);flex-shrink:0;text-align:right;padding-right:8px}
+.tl-track-line{flex:1;height:2px;background:var(--bg4);border-radius:1px;position:relative}
+.kf-pip{
+  position:absolute;top:50%;transform:translate(-50%,-50%);
+  width:6px;height:6px;border-radius:50%;background:var(--accent);
+}
+/* ── TOAST ───────────────────── */
+#toast{
+  position:fixed;bottom:calc(var(--timeline) + 16px);left:50%;transform:translateX(-50%);
+  background:var(--bg3);border:1px solid var(--border);padding:8px 20px;border-radius:50px;
+  font-size:0.8rem;color:var(--text);opacity:0;transition:opacity .3s;z-index:100;
+  pointer-events:none;
+}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div class="logo"><div class="logo-dot">🎬</div>2D Animation Studio</div>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" onclick="newProject()">📄 New</button>
+  <button class="tb-btn" id="record-btn" onclick="toggleRecord()">⏺ Record Mode</button>
+  <button class="tb-btn" onclick="addKeyframe()">🔑 Add Keyframe</button>
+  <button class="tb-btn" onclick="deleteKeyframe()">🗑 Del KF</button>
+  <div class="tb-right">
+    <span style="font-size:.75rem;color:var(--muted)">Frames: <span id="kf-total">0</span> KF</span>
+    <div class="tb-sep"></div>
+    <button class="tb-btn green" onclick="exportVideo()">⬇ Export MP4</button>
+  </div>
+</div>
+
+<!-- WORKSPACE -->
+<div id="workspace">
+
+  <!-- LEFT PANEL -->
+  <div id="left-panel">
+    <div class="panel-section">
+      <div class="panel-title">Characters</div>
+      <div class="char-presets">
+        <div class="char-preset selected" onclick="selectChar(0)" title="Anime Girl">👧</div>
+        <div class="char-preset" onclick="selectChar(1)" title="Anime Boy">👦</div>
+        <div class="char-preset" onclick="selectChar(2)" title="Robot">🤖</div>
+        <div class="char-preset" onclick="selectChar(3)" title="Monster">👾</div>
+      </div>
+    </div>
+    <div class="panel-divider"></div>
+    <div class="panel-section">
+      <div class="panel-title">Skin Tone</div>
+      <div class="bg-swatches" id="skin-swatches"></div>
+    </div>
+    <div class="panel-divider"></div>
+    <div class="panel-section">
+      <div class="panel-title">Hair Color</div>
+      <div class="bg-swatches" id="hair-swatches"></div>
+    </div>
+    <div class="panel-divider"></div>
+    <div class="panel-section">
+      <div class="panel-title">Outfit Color</div>
+      <div class="bg-swatches" id="outfit-swatches"></div>
+    </div>
+    <div class="panel-divider"></div>
+    <div class="panel-section">
+      <div class="panel-title">Background</div>
+      <div class="bg-swatches" id="bg-swatches"></div>
+    </div>
+  </div>
+
+  <!-- STAGE -->
+  <div id="stage-wrap">
+    <canvas id="main-canvas" width="640" height="440"></canvas>
+    <div class="frame-badge" id="frame-badge">Frame 0 / 0:00.00</div>
+  </div>
+
+  <!-- RIGHT PANEL: RIG CONTROLS -->
+  <div id="right-panel">
+    <div class="rig-group">
+      <div class="panel-title">Face Controls</div>
+
+      <div class="rig-item">
+        <div class="rig-header"><span class="rig-name">👁 Jaw Open</span><span class="rig-val" id="v-jaw">0.00</span></div>
+        <input type="range" min="0" max="100" value="0" id="s-jaw" oninput="updateRig('jawOpen',this.value/100)"/>
+      </div>
+      <div class="rig-item">
+        <div class="rig-header"><span class="rig-name">↕ Left Brow</span><span class="rig-val" id="v-browL">0.00</span></div>
+        <input type="range" min="-100" max="100" value="0" id="s-browL" oninput="updateRig('browL',this.value/100)"/>
+      </div>
+      <div class="rig-item">
+        <div class="rig-header"><span class="rig-name">↕ Right Brow</span><span class="rig-val" id="v-browR">0.00</span></div>
+        <input type="range" min="-100" max="100" value="0" id="s-browR" oninput="updateRig('browR',this.value/100)"/>
+      </div>
+      <div class="rig-item">
+        <div class="rig-header"><span class="rig-name">😑 Blink Left</span><span class="rig-val" id="v-blinkL">0.00</span></div>
+        <input type="range" min="0" max="100" value="0" id="s-blinkL" oninput="updateRig('blinkL',this.value/100)"/>
+      </div>
+      <div class="rig-item">
+        <div class="rig-header"><span class="rig-name">😑 Blink Right</span><span class="rig-val" id="v-blinkR">0.00</span></div>
+        <input type="range" min="0" max="100" value="0" id="s-blinkR" oninput="updateRig('blinkR',this.value/100)"/>
+      </div>
+    </div>
+    <div class="panel-divider"></div>
+    <div class="rig-group">
+      <div class="panel-title">Head & Body</div>
+      <div class="rig-item">
+        <div class="rig-header"><span class="rig-name">↔ Head Tilt</span><span class="rig-val" id="v-headTilt">0.00</span></div>
+        <input type="range" min="-30" max="30" value="0" id="s-headTilt" oninput="updateRig('headTilt',this.value/1)"/>
+      </div>
+      <div class="rig-item">
+        <div class="rig-header"><span class="rig-name">↕ Head Nod</span><span class="rig-val" id="v-headNod">0.00</span></div>
+        <input type="range" min="-20" max="20" value="0" id="s-headNod" oninput="updateRig('headNod',this.value/1)"/>
+      </div>
+      <div class="rig-item">
+        <div class="rig-header"><span class="rig-name">💪 Arm Left</span><span class="rig-val" id="v-armL">0.00</span></div>
+        <input type="range" min="-60" max="60" value="-15" id="s-armL" oninput="updateRig('armL',this.value/1)"/>
+      </div>
+      <div class="rig-item">
+        <div class="rig-header"><span class="rig-name">💪 Arm Right</span><span class="rig-val" id="v-armR">0.00</span></div>
+        <input type="range" min="-60" max="60" value="15" id="s-armR" oninput="updateRig('armR',this.value/1)"/>
+      </div>
+      <div class="rig-item">
+        <div class="rig-header"><span class="rig-name">↔ Body Tilt</span><span class="rig-val" id="v-bodyTilt">0.00</span></div>
+        <input type="range" min="-15" max="15" value="0" id="s-bodyTilt" oninput="updateRig('bodyTilt',this.value/1)"/>
+      </div>
+    </div>
+    <div class="panel-divider"></div>
+    <div class="rig-group">
+      <div class="panel-title">Expression Presets</div>
+      <div class="expr-grid">
+        <button class="expr-btn" onclick="applyExpr('happy')" title="Happy">😄</button>
+        <button class="expr-btn" onclick="applyExpr('sad')" title="Sad">😢</button>
+        <button class="expr-btn" onclick="applyExpr('surprised')" title="Surprised">😮</button>
+        <button class="expr-btn" onclick="applyExpr('angry')" title="Angry">😠</button>
+        <button class="expr-btn" onclick="applyExpr('wink')" title="Wink">😉</button>
+        <button class="expr-btn" onclick="applyExpr('neutral')" title="Neutral">😐</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TIMELINE -->
+<div id="timeline">
+  <div id="tl-controls">
+    <button class="tl-btn" onclick="goToStart()" title="Go to Start">⏮</button>
+    <button class="tl-btn play-btn" id="play-btn" onclick="togglePlay()" title="Play/Pause">▶</button>
+    <button class="tl-btn" onclick="goToEnd()" title="Go to End">⏭</button>
+    <span id="tl-time">0:00.00 / 0:10.00</span>
+    <select id="fps-sel" onchange="changeFPS(this.value)">
+      <option value="24">24 FPS</option>
+      <option value="30" selected>30 FPS</option>
+      <option value="60">60 FPS</option>
+    </select>
+    <div class="tl-right">
+      <span class="kf-count" id="kf-count-label">0 keyframes</span>
+      <button class="tl-btn" onclick="clearAllKeyframes()" title="Clear All">🗑 All</button>
+    </div>
+  </div>
+  <div id="tl-track-wrap">
+    <div id="tl-ruler"><div id="ruler-labels"></div></div>
+    <div id="tl-scrubber-area" id="tl-scrubber">
+      <div id="tl-progress-bar"></div>
+      <div id="tl-playhead"></div>
+      <div id="kf-markers"></div>
+    </div>
+    <div id="tl-tracks">
+      <div class="tl-track-row"><span class="tl-track-label">Jaw</span><div class="tl-track-line" id="track-jaw"></div></div>
+      <div class="tl-track-row"><span class="tl-track-label">Brows</span><div class="tl-track-line" id="track-brow"></div></div>
+      <div class="tl-track-row"><span class="tl-track-label">Arms</span><div class="tl-track-line" id="track-arms"></div></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────
+const canvas = document.getElementById('main-canvas');
+const ctx = canvas.getContext('2d');
+
+const TOTAL_FRAMES = 300; // 10 sec @ 30fps
+let fps = 30;
+let currentFrame = 0;
+let isPlaying = false;
+let isRecording = false;
+let rafId = null;
+let lastTime = 0;
+let keyframes = [];
+let selectedChar = 0;
+let skinIdx = 0, hairIdx = 0, outfitIdx = 0, bgIdx = 0;
+
+const SKIN_TONES  = ['#fdbcb4','#e8a87c','#c68642','#8d5524','#f5cba7','#ffe0c8'];
+const HAIR_COLORS = ['#1a0800','#4a3728','#c8a951','#e8e8e8','#c0392b','#8e44ad'];
+const OUTFIT_COLS = ['#e74c3c','#3498db','#27ae60','#8e44ad','#e67e22','#2c3e50'];
+const BG_COLORS   = ['#0d1117','#1a1a2e','#16213e','#0f3460','#1b1b2f','#2d1b69'];
+
+let params = {
+  jawOpen:0, browL:0, browR:0, blinkL:0, blinkR:0,
+  headTilt:0, headNod:0, armL:-15, armR:15, bodyTilt:0
+};
+
+// ─── INIT ──────────────────────────────────────────────────────
+function init() {
+  buildSwatches('skin-swatches', SKIN_TONES, i => { skinIdx=i; render(); }, () => skinIdx);
+  buildSwatches('hair-swatches', HAIR_COLORS, i => { hairIdx=i; render(); }, () => hairIdx);
+  buildSwatches('outfit-swatches', OUTFIT_COLS, i => { outfitIdx=i; render(); }, () => outfitIdx);
+  buildSwatches('bg-swatches', BG_COLORS, i => { bgIdx=i; render(); }, () => bgIdx);
+  buildRuler();
+  setupScrubber();
+  render();
+}
+
+function buildSwatches(id, colors, onClick, getIdx) {
+  const el = document.getElementById(id);
+  colors.forEach((c,i) => {
+    const s = document.createElement('div');
+    s.className = 'bg-swatch' + (i===0?' selected':'');
+    s.style.background = c;
+    s.onclick = () => {
+      el.querySelectorAll('.bg-swatch').forEach(x => x.classList.remove('selected'));
+      s.classList.add('selected');
+      onClick(i);
+    };
+    el.appendChild(s);
+  });
+}
+
+function buildRuler() {
+  const el = document.getElementById('ruler-labels');
+  for (let f = 0; f <= TOTAL_FRAMES; f += fps) {
+    const sec = f / fps;
+    const pct = f / TOTAL_FRAMES * 100;
+    const tick = document.createElement('div');
+    tick.className = 'ruler-tick';
+    tick.style.left = pct + '%';
+    tick.textContent = sec + 's';
+    el.appendChild(tick);
+  }
+}
+
+function setupScrubber() {
+  const area = document.getElementById('tl-scrubber-area');
+  let dragging = false;
+  area.addEventListener('mousedown', e => { dragging=true; scrubTo(e); });
+  document.addEventListener('mousemove', e => { if(dragging) scrubTo(e); });
+  document.addEventListener('mouseup', () => { dragging=false; });
+}
+
+function scrubTo(e) {
+  const area = document.getElementById('tl-scrubber-area');
+  const rect = area.getBoundingClientRect();
+  const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  currentFrame = Math.round(pct * TOTAL_FRAMES);
+  if (!isPlaying) {
+    params = getParamsAt(currentFrame);
+    syncSliders();
+    render();
+  }
+  updateTimeline();
+}
+
+// ─── RIG CONTROLS ──────────────────────────────────────────────
+function updateRig(key, val) {
+  params[key] = parseFloat(val);
+  const vels = {jawOpen:'v-jaw',browL:'v-browL',browR:'v-browR',blinkL:'v-blinkL',blinkR:'v-blinkR',headTilt:'v-headTilt',headNod:'v-headNod',armL:'v-armL',armR:'v-armR',bodyTilt:'v-bodyTilt'};
+  const el = document.getElementById(vels[key]);
+  if(el) el.textContent = parseFloat(val).toFixed(2);
+  if(isRecording) addKeyframe(true);
+  render();
+}
+
+function syncSliders() {
+  const map = {jawOpen:'s-jaw',browL:'s-browL',browR:'s-browR',blinkL:'s-blinkL',blinkR:'s-blinkR',headTilt:'s-headTilt',headNod:'s-headNod',armL:'s-armL',armR:'s-armR',bodyTilt:'s-bodyTilt'};
+  const vmap = {jawOpen:'v-jaw',browL:'v-browL',browR:'v-browR',blinkL:'v-blinkL',blinkR:'v-blinkR',headTilt:'v-headTilt',headNod:'v-headNod',armL:'v-armL',armR:'v-armR',bodyTilt:'v-bodyTilt'};
+  for(const [key, sid] of Object.entries(map)) {
+    const el = document.getElementById(sid);
+    if(!el) continue;
+    let v = params[key];
+    if(['jawOpen','blinkL','blinkR'].includes(key)) v = v*100;
+    el.value = v;
+    const vel = document.getElementById(vmap[key]);
+    if(vel) vel.textContent = params[key].toFixed(2);
+  }
+}
+
+function applyExpr(name) {
+  const exprs = {
+    happy:   {jawOpen:.2, browL:.8, browR:.8, blinkL:0, blinkR:0, headTilt:3},
+    sad:     {jawOpen:.05, browL:-.6, browR:-.6, blinkL:.1, blinkR:.1, headTilt:-4, headNod:5},
+    surprised:{jawOpen:.7, browL:1, browR:1, blinkL:0, blinkR:0, headTilt:0},
+    angry:   {jawOpen:.15, browL:-.8, browR:-.8, blinkL:.2, blinkR:.2, headTilt:-5},
+    wink:    {jawOpen:.1, browL:.3, browR:.3, blinkL:1, blinkR:0, headTilt:6},
+    neutral: {jawOpen:0, browL:0, browR:0, blinkL:0, blinkR:0, headTilt:0, headNod:0}
+  };
+  const e = exprs[name];
+  for(const k in e) params[k] = e[k];
+  if(!('headNod' in e)) params.headNod = 0;
+  syncSliders();
+  if(isRecording) addKeyframe(true);
+  render();
+  toast('Expression: '+name);
+}
+
+function selectChar(i) {
+  selectedChar = i;
+  document.querySelectorAll('.char-preset').forEach((el,j) => {
+    el.classList.toggle('selected', j===i);
+  });
+  render();
+}
+
+// ─── KEYFRAMES ─────────────────────────────────────────────────
+function addKeyframe(silent=false) {
+  const existing = keyframes.find(k => k.frame === currentFrame);
+  const snap = {...params};
+  if(existing) { existing.p = snap; }
+  else { keyframes.push({frame:currentFrame, p:snap}); keyframes.sort((a,b)=>a.frame-b.frame); }
+  updateTimeline();
+  document.getElementById('kf-total').textContent = keyframes.length;
+  if(!silent) toast('Keyframe added at frame '+currentFrame);
+}
+
+function deleteKeyframe() {
+  const idx = keyframes.findIndex(k => k.frame === currentFrame);
+  if(idx !== -1) { keyframes.splice(idx,1); updateTimeline(); toast('Keyframe removed'); }
+  else toast('No keyframe at this frame');
+  document.getElementById('kf-total').textContent = keyframes.length;
+}
+
+function clearAllKeyframes() {
+  if(!confirm('Clear all keyframes?')) return;
+  keyframes = [];
+  updateTimeline();
+  document.getElementById('kf-total').textContent = 0;
+  toast('All keyframes cleared');
+}
+
+function getParamsAt(frame) {
+  if(keyframes.length === 0) return {...params};
+  const prev = [...keyframes].filter(k=>k.frame<=frame).pop();
+  const next = keyframes.find(k=>k.frame>frame);
+  if(!prev) return {...next.p};
+  if(!next) return {...prev.p};
+  const t = (frame-prev.frame)/(next.frame-prev.frame);
+  const r = {};
+  for(const k in prev.p) r[k] = prev.p[k] + (next.p[k]-prev.p[k]) * easeInOut(t);
+  return r;
+}
+
+function easeInOut(t) { return t<.5 ? 2*t*t : -1+(4-2*t)*t; }
+
+// ─── PLAYBACK ──────────────────────────────────────────────────
+function togglePlay() {
+  isPlaying = !isPlaying;
+  document.getElementById('play-btn').textContent = isPlaying ? '⏸' : '▶';
+  if(isPlaying) {
+    if(currentFrame >= TOTAL_FRAMES) currentFrame = 0;
+    lastTime = performance.now();
+    rafId = requestAnimationFrame(loop);
+  } else {
+    cancelAnimationFrame(rafId);
+  }
+}
+
+function loop(now) {
+  const dt = now - lastTime;
+  const frameDuration = 1000/fps;
+  if(dt >= frameDuration) {
+    const skip = Math.floor(dt / frameDuration);
+    currentFrame += skip;
+    lastTime = now - (dt % frameDuration);
+    if(currentFrame >= TOTAL_FRAMES) { currentFrame = 0; }
+    params = getParamsAt(currentFrame);
+    syncSliders();
+    render();
+    updateTimeline();
+  }
+  if(isPlaying) rafId = requestAnimationFrame(loop);
+}
+
+function goToStart() { currentFrame=0; if(!isPlaying){params=getParamsAt(0);syncSliders();render();}updateTimeline(); }
+function goToEnd()   { currentFrame=TOTAL_FRAMES; if(!isPlaying){params=getParamsAt(TOTAL_FRAMES);syncSliders();render();}updateTimeline(); }
+
+function changeFPS(v) { fps=parseInt(v); buildRuler(); }
+
+function toggleRecord() {
+  isRecording = !isRecording;
+  const btn = document.getElementById('record-btn');
+  btn.classList.toggle('recording', isRecording);
+  btn.textContent = isRecording ? '⏹ Stop Record' : '⏺ Record Mode';
+  toast(isRecording ? 'Record mode ON — move sliders to auto-add KF' : 'Record mode OFF');
+}
+
+function newProject() {
+  if(!confirm('Start new project? All keyframes will be lost.')) return;
+  keyframes=[]; currentFrame=0; params={jawOpen:0,browL:0,browR:0,blinkL:0,blinkR:0,headTilt:0,headNod:0,armL:-15,armR:15,bodyTilt:0};
+  if(isPlaying) togglePlay();
+  syncSliders(); render(); updateTimeline();
+  document.getElementById('kf-total').textContent=0;
+  toast('New project created');
+}
+
+// ─── TIMELINE UI ───────────────────────────────────────────────
+function updateTimeline() {
+  const pct = currentFrame/TOTAL_FRAMES;
+  document.getElementById('tl-progress-bar').style.width = (pct*100)+'%';
+  document.getElementById('tl-playhead').style.left = (pct*100)+'%';
+
+  const totalSec = TOTAL_FRAMES/fps;
+  const curSec = currentFrame/fps;
+  function fmt(s){ const m=Math.floor(s/60), ss=Math.floor(s%60), cs=Math.floor((s%1)*100); return `${m}:${String(ss).padStart(2,'0')}.${String(cs).padStart(2,'0')}`; }
+  document.getElementById('tl-time').textContent = fmt(curSec)+' / '+fmt(totalSec);
+  document.getElementById('frame-badge').textContent = `Frame ${currentFrame}  ${fmt(curSec)}`;
+  document.getElementById('kf-count-label').textContent = keyframes.length+' keyframe'+(keyframes.length!==1?'s':'');
+  document.getElementById('kf-total').textContent = keyframes.length;
+
+  // markers
+  const markerWrap = document.getElementById('kf-markers');
+  markerWrap.innerHTML = '';
+  keyframes.forEach(kf => {
+    const m = document.createElement('div');
+    m.className='kf-marker'+(kf.frame===currentFrame?' selected':'');
+    m.style.left = (kf.frame/TOTAL_FRAMES*100)+'%';
+    m.title = 'Frame '+kf.frame;
+    m.onclick = e => { e.stopPropagation(); currentFrame=kf.frame; params=getParamsAt(currentFrame); syncSliders(); render(); updateTimeline(); };
+    markerWrap.appendChild(m);
+  });
+
+  // track pips
+  ['track-jaw','track-brow','track-arms'].forEach(id=>document.getElementById(id).innerHTML='');
+  keyframes.forEach(kf => {
+    const pct2 = kf.frame/TOTAL_FRAMES*100;
+    ['track-jaw','track-brow','track-arms'].forEach(id=>{
+      const p = document.createElement('div');
+      p.className='kf-pip'; p.style.left=pct2+'%';
+      document.getElementById(id).appendChild(p);
+    });
+  });
+}
+
+// ─── DRAWING HELPERS ───────────────────────────────────────────
+function shade(hex, amt) {
+  let r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  r=Math.max(0,Math.min(255,r+amt)); g=Math.max(0,Math.min(255,g+amt)); b=Math.max(0,Math.min(255,b+amt));
+  return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+}
+
+function rr(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r);
+  ctx.closePath();
+}
+
+// ─── CHARACTER RENDERER ────────────────────────────────────────
+function drawCharacter(ctx, p, cx, cy) {
+  const skin   = SKIN_TONES[skinIdx];
+  const hair   = HAIR_COLORS[hairIdx];
+  const outfit = OUTFIT_COLS[outfitIdx];
+  const skinD  = shade(skin, -30);
+  const outfitD= shade(outfit,-30);
+
+  ctx.save();
+  ctx.translate(cx, cy);
+
+  // ── SHADOW ──
+  ctx.fillStyle='rgba(0,0,0,.18)';
+  ctx.beginPath(); ctx.ellipse(0,210,55,12,0,0,Math.PI*2); ctx.fill();
+
+  // ── LEGS ──
+  ctx.fillStyle = outfitD;
+  rr(ctx,-40,95,28,90,10); ctx.fill();
+  rr(ctx,12,95,28,90,10);  ctx.fill();
+  // Shoes
+  ctx.fillStyle='#1a1a2e';
+  rr(ctx,-50,178,42,16,8); ctx.fill();
+  rr(ctx,8,178,42,16,8);   ctx.fill();
+
+  // ── BODY (with tilt) ──
+  ctx.save();
+  ctx.rotate((p.bodyTilt||0)*Math.PI/180);
+
+  // Left arm
+  ctx.save();
+  ctx.translate(-52,-22);
+  ctx.rotate(((p.armL||0)-0)*Math.PI/180 - 0.25);
+  ctx.fillStyle=outfit;
+  rr(ctx,-12,0,24,88,11); ctx.fill();
+  ctx.fillStyle=skin;
+  ctx.beginPath(); ctx.ellipse(0,96,13,11,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // Right arm
+  ctx.save();
+  ctx.translate(52,-22);
+  ctx.rotate(((p.armR||0)-0)*Math.PI/180 + 0.25);
+  ctx.fillStyle=outfit;
+  rr(ctx,-12,0,24,88,11); ctx.fill();
+  ctx.fillStyle=skin;
+  ctx.beginPath(); ctx.ellipse(0,96,13,11,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // Torso
+  ctx.fillStyle=outfit;
+  ctx.beginPath();
+  ctx.moveTo(-50,-50); ctx.lineTo(50,-50);
+  ctx.lineTo(56,96); ctx.lineTo(-56,96);
+  ctx.closePath(); ctx.fill();
+  // Collar V
+  ctx.fillStyle=outfitD;
+  ctx.beginPath(); ctx.moveTo(-16,-50); ctx.lineTo(16,-50); ctx.lineTo(6,-20); ctx.lineTo(-6,-20); ctx.closePath(); ctx.fill();
+  ctx.restore(); // body tilt
+
+  // ── HEAD ──
+  ctx.save();
+  ctx.translate(0,-130);
+  ctx.rotate((p.headTilt||0)*Math.PI/180);
+  ctx.translate(0, (p.headNod||0));
+
+  // Neck
+  ctx.fillStyle=skin;
+  rr(ctx,-13,44,26,36,7); ctx.fill();
+
+  // Head base
+  ctx.fillStyle=skin;
+  ctx.beginPath(); ctx.ellipse(0,0,58,66,0,0,Math.PI*2); ctx.fill();
+
+  // Ear L
+  ctx.fillStyle=skin;
+  ctx.beginPath(); ctx.ellipse(-55,10,10,13,-.15,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=skinD;
+  ctx.beginPath(); ctx.ellipse(-55,10,6,8,-.15,0,Math.PI*2); ctx.fill();
+
+  // Ear R
+  ctx.fillStyle=skin;
+  ctx.beginPath(); ctx.ellipse(55,10,10,13,.15,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=skinD;
+  ctx.beginPath(); ctx.ellipse(55,10,6,8,.15,0,Math.PI*2); ctx.fill();
+
+  // Hair back
+  ctx.fillStyle=hair;
+  ctx.beginPath(); ctx.ellipse(0,-6,61,56,0,Math.PI,0,true); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-53,22,12,28,-.3,Math.PI,0,true); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(53,22,12,28,.3,Math.PI,0,true); ctx.fill();
+
+  // Cheek blush
+  ctx.fillStyle='rgba(255,150,130,.18)';
+  ctx.beginPath(); ctx.ellipse(-30,20,16,10,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(30,20,16,10,0,0,Math.PI*2); ctx.fill();
+
+  // ── LEFT EYE ──
+  ctx.save(); ctx.translate(-22,-5);
+  drawEye(ctx, p.blinkL||0, selectedChar);
+  ctx.restore();
+
+  // ── RIGHT EYE ──
+  ctx.save(); ctx.translate(22,-5);
+  drawEye(ctx, p.blinkR||0, selectedChar);
+  ctx.restore();
+
+  // ── EYEBROWS ──
+  const browL=p.browL||0, browR=p.browR||0;
+  ctx.strokeStyle=hair; ctx.lineWidth=4; ctx.lineCap='round';
+
+  ctx.save();
+  ctx.translate(-22,-26-browL*10);
+  ctx.rotate(browL*0.22);
+  ctx.beginPath(); ctx.moveTo(-14,0); ctx.quadraticCurveTo(0,-4-browL*4,14,0); ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(22,-26-browR*10);
+  ctx.rotate(-browR*0.22);
+  ctx.beginPath(); ctx.moveTo(-14,0); ctx.quadraticCurveTo(0,-4-browR*4,14,0); ctx.stroke();
+  ctx.restore();
+
+  // ── NOSE ──
+  ctx.strokeStyle=skinD; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(0,8); ctx.quadraticCurveTo(9,18,4,24); ctx.stroke();
+
+  // ── MOUTH ──
+  ctx.save(); ctx.translate(0,36); drawMouth(ctx, p.jawOpen||0, skin, hair, skinD); ctx.restore();
+
+  // Hair bangs (front)
+  ctx.fillStyle=hair;
+  ctx.beginPath();
+  ctx.moveTo(-62,-20);
+  ctx.quadraticCurveTo(-52,-72,-22,-62);
+  ctx.quadraticCurveTo(-12,-28,0,-66);
+  ctx.quadraticCurveTo(12,-28,22,-62);
+  ctx.quadraticCurveTo(52,-72,62,-20);
+  ctx.lineTo(64,-8);
+  ctx.quadraticCurveTo(0,-80,-64,-8);
+  ctx.closePath(); ctx.fill();
+
+  ctx.restore(); // head
+  ctx.restore(); // main translate
+}
+
+function drawEye(ctx, blink, charIdx) {
+  const openH = Math.max(2, 18*(1-blink*0.95));
+  const IRIS_COLORS = ['#4a90d9','#27ae60','#e74c3c','#9b59b6'];
+  const irisColor = IRIS_COLORS[charIdx % IRIS_COLORS.length];
+
+  // White
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.ellipse(0,0,16,openH,0,0,Math.PI*2); ctx.fill();
+
+  if(blink < 0.85) {
+    // Iris
+    ctx.fillStyle=irisColor;
+    ctx.beginPath(); ctx.ellipse(0,2,10,Math.min(10,openH-1),0,0,Math.PI*2); ctx.fill();
+    // Pupil
+    ctx.fillStyle='#0d1117';
+    ctx.beginPath(); ctx.arc(0,2,5.5,0,Math.PI*2); ctx.fill();
+    // Shine 1
+    ctx.fillStyle='rgba(255,255,255,.92)';
+    ctx.beginPath(); ctx.ellipse(-4,-1,4,3,-.5,0,Math.PI*2); ctx.fill();
+    // Shine 2
+    ctx.beginPath(); ctx.arc(4,4,2,0,Math.PI*2); ctx.fill();
+  }
+  // Top eyelid
+  ctx.fillStyle = SKIN_TONES[skinIdx];
+  ctx.beginPath(); ctx.ellipse(0,-openH+0.5,17,openH*blink+1.5,0,Math.PI,0); ctx.fill();
+  // Lashes
+  ctx.strokeStyle='#0d1117'; ctx.lineWidth=2.2;
+  ctx.beginPath(); ctx.ellipse(0,0,16,openH,0,Math.PI,0); ctx.stroke();
+  // Bottom lid
+  ctx.beginPath(); ctx.ellipse(0,0,16,openH,0,0,Math.PI); ctx.stroke();
+}
+
+function drawMouth(ctx, jawOpen, skin, hair, skinD) {
+  const w=28;
+  if(jawOpen < 0.04) {
+    // Closed neutral smile
+    ctx.strokeStyle=skinD; ctx.lineWidth=2.5; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(-w/2,0); ctx.quadraticCurveTo(0,9,w/2,0); ctx.stroke();
+    return;
+  }
+  const openH = jawOpen*22;
+  // Inside
+  ctx.fillStyle='#8b1a1a';
+  ctx.beginPath(); ctx.ellipse(0,openH/2,w/2,openH/2+5,0,0,Math.PI); ctx.fill();
+  // Teeth
+  ctx.fillStyle='#f0f0f0';
+  ctx.fillRect(-w/2+2,1,w-4,Math.min(9,openH*.45));
+  // Tongue
+  if(jawOpen>.45) {
+    ctx.fillStyle='#e74c3c';
+    ctx.beginPath(); ctx.ellipse(0,openH*.72,11,7,0,0,Math.PI); ctx.fill();
+  }
+  // Upper lip
+  ctx.strokeStyle=skinD; ctx.lineWidth=2; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-w/2,0); ctx.quadraticCurveTo(-8,-5,0,-2); ctx.quadraticCurveTo(8,-5,w/2,0); ctx.stroke();
+  // Outline
+  ctx.strokeStyle='rgba(0,0,0,.4)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.ellipse(0,openH/2,w/2,openH/2+5,0,0,Math.PI); ctx.stroke();
+}
+
+// ─── MAIN RENDER ───────────────────────────────────────────────
+function render() {
+  const W=canvas.width, H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  // Background
+  const bg = BG_COLORS[bgIdx];
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+
+  // Subtle vignette
+  const vg = ctx.createRadialGradient(W/2,H/2,H*.3,W/2,H/2,H*.8);
+  vg.addColorStop(0,'rgba(0,0,0,0)');
+  vg.addColorStop(1,'rgba(0,0,0,.4)');
+  ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+
+  // Grid floor line
+  ctx.strokeStyle='rgba(255,255,255,.04)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,H-80); ctx.lineTo(W,H-80); ctx.stroke();
+
+  drawCharacter(ctx, params, W/2, H/2+30);
+}
+
+// ─── EXPORT VIDEO ──────────────────────────────────────────────
+async function exportVideo() {
+  if(keyframes.length < 2) { toast('Add at least 2 keyframes to export!'); return; }
+  toast('Exporting video…');
+
+  const stream = canvas.captureStream(fps);
+  const recorder = new MediaRecorder(stream, {mimeType:'video/webm;codecs=vp8'});
+  const chunks = [];
+  recorder.ondataavailable = e => { if(e.data.size) chunks.push(e.data); };
+
+  recorder.onstop = () => {
+    const blob = new Blob(chunks,{type:'video/webm'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'animation.webm';
+    a.click();
+    toast('Video exported! 🎉');
+    // restore
+    currentFrame=0; params=getParamsAt(0); syncSliders(); render(); updateTimeline();
+  };
+
+  const savedFrame = currentFrame;
+  const savedParams = {...params};
+  currentFrame=0;
+  recorder.start();
+
+  const frameDur = 1000/fps;
+  for(let f=0; f<=TOTAL_FRAMES; f++) {
+    currentFrame=f;
+    params = getParamsAt(f);
+    render();
+    await new Promise(r=>setTimeout(r, frameDur/2));
+  }
+  recorder.stop();
+}
+
+// ─── TOAST ─────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),2500);
+}
+
+// ─── KEYBOARD SHORTCUTS ────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT') return;
+  if(e.code==='Space'){e.preventDefault();togglePlay();}
+  if(e.code==='KeyK') addKeyframe();
+  if(e.code==='ArrowLeft'){currentFrame=Math.max(0,currentFrame-1);if(!isPlaying){params=getParamsAt(currentFrame);syncSliders();render();}updateTimeline();}
+  if(e.code==='ArrowRight'){currentFrame=Math.min(TOTAL_FRAMES,currentFrame+1);if(!isPlaying){params=getParamsAt(currentFrame);syncSliders();render();}updateTimeline();}
+  if(e.code==='Home') goToStart();
+  if(e.code==='End') goToEnd();
+});
+
+// ─── START ─────────────────────────────────────────────────────
+init();
+updateTimeline();
+toast('Welcome! Pose the character, add keyframes, then play ▶');
+</script>
+</body>
+</html>
